@@ -26,7 +26,7 @@ st.markdown("### 💼 생활안정자금 여부")
 want_life_loan = st.checkbox("생활안정자금 추가 신청")
 
 if want_life_loan:
-    st.info("ℹ️ 생활안정자금은 세입자 본인 명의로 실행되며, 집주인 동의는 불필요합니다. 전세자금대출과 달리 임대차와 무관한 생활비 용도 대출이기 때문입니다."))
+    st.info("ℹ️ 생활안정자금은 세입자 본인 명의로 실행되며, 집주인 동의는 불필요합니다. 전세자금대출과 달리 임대차와 무관한 생활비 용도 대출이기 때문입니다.")
 
             life_years = st.number_input("생활안정자금 대출 기간 (년)", min_value=1, max_value=10, value=3)
             life_rate = st.number_input("생활안정자금 금리 (%)", min_value=0.0, value=4.13)
