@@ -4,18 +4,15 @@ def calculate_monthly_payment(principal, years, rate, repay_type):
     months = years * 12
     monthly_rate = rate / 100 / 12
 
-    if repay_type == "\uc6d0\ub9ac\uae08\uaddc\ub2e8":
+    if repay_type == "원리금균등":
         if monthly_rate == 0:
             return principal / months
         return principal * monthly_rate * (1 + monthly_rate)**months / ((1 + monthly_rate)**months - 1)
-    
-    elif repay_type == "\uc6d0\uae08\uaddc\ub2e8":
+    elif repay_type == "원금균등":
         monthly_principal = principal / months
         return monthly_principal + (principal * monthly_rate)
-
-    elif repay_type == "\ub9cc\uae30\uc77c\uc2dc":
+    elif repay_type == "만기일시":
         return principal * monthly_rate
-
     return 0
 
 def calculate_dsr(existing_loans, annual_income):
@@ -30,22 +27,20 @@ def calculate_dsr(existing_loans, annual_income):
 def recommend_product(age, is_married, annual_income, house_price, hope_loan, guarantee_org):
     product = ""
     max_limit = 0
-
     if age <= 34 and annual_income <= 70000000:
-        product = "\uccad\ub144 \uc804\uc138\uc790\uae08\ub300\출"
+        product = "청년 전세자금대출"
         max_limit = 200000000 if guarantee_org == "HUG" else 100000000
     elif is_married and annual_income <= 80000000:
-        product = "\uc2e0\ud6c8\ubd80\ubd80 \uc804\uc138\uc790\uae08\ub300\출"
+        product = "신혼부부 전세자금대출"
         max_limit = 240000000
     else:
-        product = "\uc77c\ubc18 \uc804\uc138\uc790\uae08\ub300\출"
+        product = "일반 전세자금대출"
         max_limit = min(house_price * 0.8, 500000000)
-
     is_approved = hope_loan <= max_limit
     return product, max_limit, is_approved
 
 def calculate_estimated_dsr(hope_loan, rate, years, existing_loans, income):
-    new_monthly = calculate_monthly_payment(hope_loan, years, rate, "\uc6d0\ub9ac\uae08\uaddc\ub2e8")
+    new_monthly = calculate_monthly_payment(hope_loan, years, rate, "원리금균등")
     total_annual_payment = new_monthly * 12
     for loan in existing_loans:
         monthly = calculate_monthly_payment(
@@ -54,36 +49,80 @@ def calculate_estimated_dsr(hope_loan, rate, years, existing_loans, income):
         total_annual_payment += monthly * 12
     return (total_annual_payment / income) * 100 if income > 0 else 0
 
-# Streamlit UI
-st.title("\uc804\uc138\uc790\uae08\ub300\출 \ud55c\ub3c4 \uacc4\uc0b0\uae30 with DSR")
+# --- UI 시작 ---
+st.title("📊 전세자금대출 한도 계산기 with DSR")
 
-age = st.number_input("\ub098\uc774", min_value=19, max_value=70, step=1)
-is_married = st.radio("\uacb0\ud63c \uc5ec\ubd80", ["\ubbf8\ud63c", "\uacb0\ud63c"]) == "\uacb0\ud63c"
-annual_income = st.number_input("\uc5f0\uc18c\ub4dd (\ub9cc\uc6d0)", min_value=0, step=100) * 10000
-house_price = st.number_input("\uc804\uc138\uae08 (\uc6d0)", min_value=0, step=1000000)
-hope_loan = st.number_input("\ud53c\ubc95 \ub300\출 \uae08\uc561 (\uc6d0)", min_value=0, step=1000000)
-guarantee_org = st.selectbox("\ubcf4\uc99d\uae30\uad00", ["HUG", "HF", "SGI"])
-loan_rate = st.number_input("\uc804\uc138\ub300\출 \uc774\uc790\uc728 (%)", min_value=0.0, step=0.1)
-loan_years = st.number_input("\uc804\uc138\ub300\출 \uae30\uac04 (\ub144)", min_value=1, max_value=30)
+# 기본 정보 입력
+age = st.number_input("나이", min_value=19, max_value=70, step=1)
+is_married = st.radio("결혼 여부", ["미혼", "결혼"]) == "결혼"
 
-st.markdown("### \uae30\uc874 \ub300\출 \uc815\ubcf4")
-num_loans = st.number_input("\uae30\uc874 \ub300\출 \uac74\uc218", min_value=0, max_value=10, step=1)
+# 연소득
+raw_income = st.text_input("연소득 (만원)", value="6000")
+try:
+    annual_income = int(raw_income.replace(",", "")) * 10000
+    st.caption(f"👉 입력값: {annual_income:,} 원")
+except:
+    annual_income = 0
+    st.error("숫자를 정확히 입력하세요. 예: 6,000")
+
+# 전세금
+raw_jeonse = st.text_input("전세금 (원)", value="450000000")
+try:
+    house_price = int(raw_jeonse.replace(",", ""))
+    st.caption(f"👉 입력값: {house_price:,} 원")
+except:
+    house_price = 0
+    st.error("숫자를 정확히 입력하세요. 예: 450,000,000")
+
+# 희망 대출금
+raw_hope = st.text_input("희망 대출 금액 (원)", value="300000000")
+try:
+    hope_loan = int(raw_hope.replace(",", ""))
+    st.caption(f"👉 입력값: {hope_loan:,} 원")
+except:
+    hope_loan = 0
+    st.error("숫자를 정확히 입력하세요. 예: 300,000,000")
+
+# 보증기관 / 전세대출 조건
+guarantee_org = st.selectbox("보증기관", ["HUG", "HF", "SGI"])
+loan_rate = st.number_input("전세대출 이자율 (%)", min_value=0.0, step=0.1)
+loan_years = st.number_input("전세대출 기간 (년)", min_value=1, max_value=30)
+
+# 기존 대출 입력
+st.markdown("### 🏦 기존 대출 정보 입력")
+num_loans = st.number_input("기존 대출 건수", min_value=0, max_value=10, step=1)
 existing_loans = []
 for i in range(num_loans):
-    st.markdown(f"#### 👉 \uae30\uc874 \ub300\출 {i+1}")
-    amount = st.number_input(f"\ub300\출\uae08\uc561 {i+1} (\uc6d0)", min_value=0, step=1000000)
-    period = st.number_input(f"\ub300\출\uae30\uac04 {i+1} (\ub144)", min_value=1, max_value=40)
-    rate = st.number_input(f"\uc774\uc790\uc728 {i+1} (%)", min_value=0.0, step=0.1)
-    repay_type = st.selectbox(f"\uc0ac\ud56d\ubc29\uc2dd {i+1}", ["\uc6d0\ub9ac\uae08\uaddc\ub2e8", "\uc6d0\uae08\uaddc\ub2e8", "\ub9cc\uae30\uc77c\uc2dc"], key=f"repay_{i}")
-    existing_loans.append({"amount": amount, "period": period, "rate": rate, "repay_type": repay_type})
+    st.markdown(f"#### 👉 기존 대출 {i+1}")
 
-if st.button("\uacc4\uc0b0 \uacb0\uacfc \ubcf4\uae30"):
+    raw_amt = st.text_input(f"대출금액 {i+1} (원)", value="100000000", key=f"amt_{i}")
+    try:
+        amount = int(raw_amt.replace(",", ""))
+        st.caption(f"👉 입력값: {amount:,} 원")
+    except:
+        amount = 0
+        st.error("숫자를 정확히 입력하세요.", key=f"err_amt_{i}")
+
+    period = st.number_input(f"대출기간 {i+1} (년)", min_value=1, max_value=40, key=f"prd_{i}")
+    rate = st.number_input(f"이자율 {i+1} (%)", min_value=0.0, step=0.1, key=f"rate_{i}")
+    repay_type = st.selectbox(f"상환방식 {i+1}", ["원리금균등", "원금균등", "만기일시"], key=f"repay_{i}")
+    existing_loans.append({
+        "amount": amount,
+        "period": period,
+        "rate": rate,
+        "repay_type": repay_type
+    })
+
+# 계산 버튼
+if st.button("📊 계산 결과 보기"):
     current_dsr = calculate_dsr(existing_loans, annual_income)
     estimated_dsr = calculate_estimated_dsr(hope_loan, loan_rate, loan_years, existing_loans, annual_income)
     product, max_limit, is_approved = recommend_product(age, is_married, annual_income, house_price, hope_loan, guarantee_org)
 
-    st.markdown(f"### 📌 \ud604\uc7ac DSR: **{current_dsr:.2f}%**")
-    st.markdown(f"### 🧮 \uc804\uc138\ub300\출 \ud3ec\ud568 \uc608\uc0b0 DSR: **{estimated_dsr:.2f}%**")
-    st.markdown(f"### 💡 \ucd5c\uc801 \uc801\uc6a9 \uac00\ub2a5 \uc0c1\ud488: **{product}**")
-    st.markdown(f"### 💰 \ud574\ub2f9 \uc0c1\ud488 \ub300\출 \ub300\ud55c \ucd5c\ub300 \ud55c\ub3c4: **{int(max_limit):,} \uc6d0**")
-    st.markdown(f"### ✅ \ud53c\ubc95 \ub300\출 \uac00\ub2a5 \uc5ec\ubd80: **{'\uac00\ub2a5' if is_approved else '\ubd88\uac00'}**")
+    st.markdown(f"### 📌 현재 DSR: **{current_dsr:.2f}%**")
+    st.markdown(f"### 🧮 전세대출 포함 예상 DSR: **{estimated_dsr:.2f}%**")
+    st.markdown(f"### 💡 추천 상품: **{product}**")
+    st.markdown(f"### 💰 해당 상품 최대 한도: **{int(max_limit):,} 원**")
+    st.markdown(f"### ✅ 희망 대출 가능 여부: **{'가능' if is_approved else '불가'}**")
+
+  
