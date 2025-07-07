@@ -1,5 +1,4 @@
 import streamlit as st
-import io
 from datetime import datetime
 
 def calculate_monthly_payment(principal, years, rate, repay_type):
@@ -96,6 +95,9 @@ guarantee_org = st.selectbox("보증기관", ["HUG", "HF", "SGI"], index=["HUG",
 loan_rate = st.number_input("전세대출 이자율 (%)", min_value=0.0, step=0.1, value=st.session_state.user_inputs.get("loan_rate", 3.5))
 loan_years = st.number_input("전세대출 기간 (년)", min_value=1, max_value=30, value=st.session_state.user_inputs.get("loan_years", 2))
 
+use_stress_rate = st.checkbox("📈 스트레스 금리 적용 (DSR 계산 시 +0.6%)")
+effective_rate = loan_rate + 0.6 if use_stress_rate else loan_rate
+
 st.markdown("### 🏦 기존 대출 정보 입력")
 num_loans = st.number_input("기존 대출 건수", min_value=0, max_value=10, step=1, value=st.session_state.user_inputs.get("num_loans", 1))
 existing_loans = []
@@ -119,7 +121,6 @@ for i in range(num_loans):
     })
 
 if st.button("📊 계산 결과 보기"):
-    # 입력값 저장
     st.session_state.user_inputs = {
         "age": age,
         "is_married": is_married,
@@ -134,7 +135,7 @@ if st.button("📊 계산 결과 보기"):
     }
 
     current_dsr = calculate_dsr(existing_loans, annual_income)
-    estimated_dsr = calculate_estimated_dsr(hope_loan, loan_rate, loan_years, existing_loans, annual_income)
+    estimated_dsr = calculate_estimated_dsr(hope_loan, effective_rate, loan_years, existing_loans, annual_income)
     product, max_limit, is_approved = recommend_product(age, is_married, annual_income, market_price, hope_loan, guarantee_org)
 
     st.markdown(f"### 📌 현재 DSR: **{current_dsr:.2f}%**")
@@ -143,14 +144,12 @@ if st.button("📊 계산 결과 보기"):
     st.markdown(f"### 💰 해당 상품 최대 한도: **{int(max_limit):,} 원**")
     st.markdown(f"### ✅ 희망 대출 가능 여부: **{'가능' if is_approved else '불가'}**")
 
-    # SGI 보증료 안내
     if guarantee_org == "SGI":
         sgi_fee = hope_loan * 0.01
         st.markdown(f"💸 SGI 보증료 추정: **{int(sgi_fee):,} 원** (대출금에서 차감될 수 있음)")
 
-    # 최대 대출 가능 역산
-    if estimated_dsr > 70 and loan_rate > 0:
-        r = loan_rate / 100 / 12
+    if estimated_dsr > 70 and effective_rate > 0:
+        r = effective_rate / 100 / 12
         n = loan_years * 12
         max_annual_repay = annual_income * 0.7
         existing_annual = sum(
@@ -162,7 +161,6 @@ if st.button("📊 계산 결과 보기"):
             max_possible_loan = (remain_annual / 12) * ((1 + r)**n - 1) / (r * (1 + r)**n)
             st.markdown(f"🔁 현재 소득 기준으로 가능한 최대 대출금: **{int(max_possible_loan):,} 원** (DSR 70% 기준)")
 
-    # 보고서 다운로드 기능
     result_text = f"""
     전세자금대출 한도 계산 보고서 - {datetime.now().strftime('%Y-%m-%d')}
 
@@ -184,11 +182,13 @@ if st.button("📊 계산 결과 보기"):
     """
     st.download_button(
         label="📄 보고서 다운로드 (TXT)",
-        data=io.StringIO(result_text),
+        data=result_text,
         file_name="jeonse_loan_report.txt",
         mime="text/plain"
     )
 
-    
+   
+
+   
 
  
